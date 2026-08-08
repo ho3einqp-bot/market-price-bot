@@ -1,0 +1,49 @@
+name: Price Bot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install requests
+      - name: Send prices
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHANNEL_ID }}
+        run: |
+          python -c "
+import requests
+import os
+import time
+
+TOKEN = os.environ['TOKEN']
+CHAT_ID = os.environ['CHAT_ID']
+
+try:
+    r = requests.get('https://brsapi.ir/api/market/gold_currency', timeout=10)
+    data = r.json()
+    usd = data['usd']['price']
+    gold = data['gold']['price_per_gram']
+    coin = data['gold']['emami_coin']
+    msg = f'''💰 قیمت‌های لحظه‌ای
+
+🇺🇸 دلار آمریکا: {usd} تومان
+🥇 طلا (هر گرم): {gold} تومان
+🪙 سکه امامی: {coin} تومان
+
+⏰ {time.strftime('%Y-%m-%d %H:%M:%S')}'''
+except:
+    msg = '❌ خطا در دریافت قیمت'
+
+url = f'https://api.telegram.org/bot{TOKEN}/sendMessage'
+requests.post(url, data={'chat_id': CHAT_ID, 'text': msg})
+print('Done')
+"
